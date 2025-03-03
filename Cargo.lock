@@ -4,8 +4,9 @@ version = 4
 
 [[package]]
 name = "WentuZ-Backend"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
+ "async-trait",
  "rand",
  "rodio",
  "tokio",
@@ -62,6 +63,17 @@ name = "arrayvec"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
+
+[[package]]
+name = "async-trait"
+version = "0.1.87"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d556ec1359574147ec0c4fc5eb525f3f23263a592b1a9c07e0a75b427de55c97"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "autocfg"

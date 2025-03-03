@@ -19,7 +19,7 @@
 use std::time::Duration;
 
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Track {
     pub title: String,
     pub file_data: Vec<u8>,

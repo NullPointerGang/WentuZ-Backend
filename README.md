@@ -19,6 +19,9 @@
 - Поддержка многопоточного выполнения  
 
 ## Использование
+
+### Player
+
 Пример использования **Player** для воспроизведения трека:
 
 ```rust
@@ -33,6 +36,54 @@ fn main() {
     player.play(track);
 }
 ```
+
+### События Player
+
+Пример использования событий плеера **EventHandler**:
+
+```rust
+use wentuz_backend::core::player::EventHandler;
+use async_trait::async_trait;
+
+struct MyEventHandler;
+
+#[async_trait]
+impl EventHandler for MyEventHandler {
+    async fn handle_event(&self, event: PlayerEvent) {
+        match event {
+            PlayerEvent::TrackStart(track) => {
+                println!(
+                    "[HANDLER] Track started: {}",
+                    track.title,
+                );
+            }
+            PlayerEvent::TrackEnd(track) => {
+                println!("[HANDLER] Track ended: {}", track.title);
+            }
+            PlayerEvent::VolumeChanged(vol) => {
+                println!("[HANDLER] Volume changed to: {:.2}", vol);
+            }
+            _ => {}
+        }
+    }
+}
+```
+
+Подключение **MyEventHandler**:
+
+```rust
+use core::player::Player;
+
+#[tokio::main]
+async fn main() {
+    let mut player = Player::new();
+    
+    player.add_event_handler(Arc::new(MyEventHandler)).await;
+
+    // Ваш код 
+}
+```
+
 
 ## Основные компоненты
 

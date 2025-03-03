@@ -1,6 +1,6 @@
 [package]
 name = "WentuZ-Backend"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 authors = ["FlacSy <flacsy.tw@gmail.com>"]
 description = "A Rust music player library"
@@ -10,6 +10,7 @@ license-file = "LICENSE"
 tokio = { version = "1", features = ["full"] }
 rodio = { version = "0.20.1", default-features = false, features = ["symphonia-all"] }
 rand = { version = "0.9.0-beta.3" }
+async-trait = { version = "0.1.77" }
 
 [profile.release]
 opt-level = 3

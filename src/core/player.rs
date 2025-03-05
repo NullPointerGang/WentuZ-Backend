@@ -59,7 +59,7 @@ pub trait EventHandler: Send + Sync {
 #[derive(Clone)]
 pub struct Player {
     pub queue: Arc<Mutex<Queue>>,
-    current_sink: Arc<Mutex<Option<Arc<Sink>>>>,
+    pub current_sink: Arc<Mutex<Option<Arc<Sink>>>>,
     auto_play_enabled: Arc<Mutex<bool>>,
     auto_play_tx: Option<mpsc::Sender<()>>,
     volume: f32,

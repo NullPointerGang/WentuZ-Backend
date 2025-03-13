@@ -19,7 +19,8 @@ use crate::core::queue::Queue;
 use crate::core::track::Track;
 
 use std::time::Duration;
-use rodio::{Decoder, OutputStream, Sink};
+use rodio::{Decoder, OutputStream, Sink, Device};
+use rodio::cpal::{self, traits::{HostTrait, DeviceTrait}};
 use std::io::Cursor;
 use std::sync::Arc;
 
@@ -33,6 +34,8 @@ pub enum PlayerErrors {
     QueueEmpty,
     TrackNotFound,
     SeekError,
+    DeviceNotFound,
+    DeviceError(String),
     UnknownError(String),
 }
 
@@ -48,6 +51,7 @@ pub enum PlayerEvent {
     AutoPlayStarted,
     AutoPlayStopped,
     QueueUpdated,
+    DeviceChanged(String),
     Error(PlayerErrors),
 }
 
@@ -60,6 +64,7 @@ pub trait EventHandler: Send + Sync {
 pub struct Player {
     pub queue: Arc<Mutex<Queue>>,
     pub current_sink: Arc<Mutex<Option<Arc<Sink>>>>,
+    current_device: Arc<Mutex<Option<Device>>>,
     auto_play_enabled: Arc<Mutex<bool>>,
     auto_play_tx: Option<mpsc::Sender<()>>,
     volume: f32,
@@ -74,6 +79,7 @@ impl Player {
         Player {
             queue: Arc::new(Mutex::new(Queue::new())),
             current_sink: Arc::new(Mutex::new(None)),
+            current_device: Arc::new(Mutex::new(None)),
             auto_play_enabled: Arc::new(Mutex::new(false)),
             auto_play_tx: None,
             volume: 1.0,
@@ -131,6 +137,41 @@ impl Player {
         }
     }
 
+    pub async fn list_devices(&self) -> Result<Vec<String>, PlayerErrors> {
+        let host = cpal::default_host();
+        match host.output_devices() {
+            Ok(devices) => {
+                let device_names: Vec<String> = devices
+                    .map(|device| device.name().unwrap_or_else(|_| "Unknown Device".to_string()))
+                    .collect();
+                Ok(device_names)
+            }
+            Err(e) => Err(PlayerErrors::DeviceError(e.to_string())),
+        }
+    }
+
+    pub async fn set_device(&self, device_name: &str) -> Result<(), PlayerErrors> {
+        println!("[DEBUG] Setting audio device: {}", device_name);
+        
+        let host = cpal::default_host();
+        let mut devices = host.output_devices().map_err(|e| PlayerErrors::DeviceError(e.to_string()))?;
+        let device = devices
+            .find(|d| d.name().map_or(false, |name| name == device_name))
+            .ok_or(PlayerErrors::DeviceNotFound)?;
+
+        let device: Device = device.into();
+        let mut device_guard = self.current_device.lock().await;
+        *device_guard = Some(device);
+
+        self.send_event(PlayerEvent::DeviceChanged(device_name.to_string())).await;
+        Ok(())
+    }
+
+    pub async fn get_current_device(&self) -> Option<String> {
+        let device_guard = self.current_device.lock().await;
+        device_guard.as_ref().and_then(|d| d.name().ok())
+    }
+
     pub async fn play(&self, track: Track) {
         self.stop().await;
 
@@ -142,6 +183,7 @@ impl Player {
         let track_data = track.file_data.clone();
         let track_title = track.title.clone();
         let current_sink = Arc::clone(&self.current_sink);
+        let current_device = Arc::clone(&self.current_device);
         let volume = self.volume;
 
         tokio::spawn(async move {
@@ -149,7 +191,16 @@ impl Player {
                 let cursor = Cursor::new(track_data);
                 match Decoder::new_looped(cursor) {
                     Ok(source) => {
-                        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+                        let device = {
+                            let device_guard = current_device.blocking_lock();
+                            device_guard.as_ref().cloned()
+                        };
+
+                        let (_stream, stream_handle) = match device {
+                            Some(device) => OutputStream::try_from_device(&device).unwrap(),
+                            None => OutputStream::try_default().unwrap(),
+                        };
+
                         let sink = Arc::new(Sink::try_new(&stream_handle).unwrap());
                         sink.set_volume(volume);
 

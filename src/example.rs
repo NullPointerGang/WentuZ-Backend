@@ -25,6 +25,12 @@ impl EventHandler for MyEventHandler {
             PlayerEvent::VolumeChanged(vol) => {
                 println!("[HANDLER] Volume changed to: {:.2}", vol);
             }
+            PlayerEvent::DeviceChanged(device_name) => {
+                println!("[HANDLER] Audio device changed to: {}", device_name);
+            }
+            PlayerEvent::Error(error) => {
+                println!("[HANDLER] Error occurred: {:?}", error);
+            }
             _ => {}
         }
     }
@@ -56,6 +62,28 @@ async fn main() {
             println!("[EVENT] Received: {:?}", event);
         }
     });
+    
+    match player.list_devices().await {
+        Ok(devices) => {
+            println!("Available audio devices:");
+            for (i, device) in devices.iter().enumerate() {
+                println!("{}. {}", i + 1, device);
+            }
+        }
+        Err(e) => println!("Failed to get audio devices: {:?}", e),
+    }
+
+    if let Some(current_device) = player.get_current_device().await {
+        println!("Current audio device: {}", current_device);
+    }
+
+    if let Ok(devices) = player.list_devices().await {
+        let device_str = "pulse";
+        match player.set_device(device_str).await {
+            Ok(_) => println!("Successfully set audio device to: {}", device_str),
+            Err(e) => println!("Failed to set audio device: {:?}", e),
+        }
+    }
 
     player.add_to_queue(track1).await;
     player.add_to_queue(track2).await;

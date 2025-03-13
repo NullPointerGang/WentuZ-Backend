@@ -2,13 +2,14 @@
 
 [WentuZ-Backend](https://github.com/NullPointerGang/WantuZ-Backend) — это библиотека на Rust для управления аудиоплеером. Она обеспечивает воспроизведение, управление треками и потоковую обработку аудио.  
 
-Проект разработан [FlacSy](https://github.com/FlacSy/) в качестве backend-компонента музыкального плеера [WentuZ](https://github.com/NullPointerGang/WentuZ), который разрабатывается командой [NullPointerGang](https://github.com/NullPointerGang).  
+Проект разработан [FlacSy](https://github.com/FlacSy/) в качестве backend-компонента музыкального плеера [WentuZ](https://github.com/NullPointerGang/WantuZ), который разрабатывается командой [NullPointerGang](https://github.com/NullPointerGang).  
 
 **Основные возможности:**
 - Поддержка многопоточного воспроизведения  
 - Интерактивное управление очередью треков  
 - Поддержка популярных аудиоформатов  
 - Интеграция с другими сервисами через API  
+- Управление аудио устройствами
 
 ## Возможности
 - Воспроизведение аудиотреков  
@@ -17,6 +18,8 @@
 - Автоматическое воспроизведение  
 - Регулировка громкости  
 - Поддержка многопоточного выполнения  
+- Выбор и переключение аудио устройств
+- Получение списка доступных аудио устройств
 
 ## Использование
 
@@ -29,11 +32,31 @@ use wentuz_backend::core::player::Player;
 use wentuz_backend::core::track::Track;
 use std::fs;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let player = Player::new();
+    
+    // Получение списка доступных аудио устройств
+    if let Ok(devices) = player.list_devices().await {
+        println!("Available audio devices:");
+        for device in devices {
+            println!("- {}", device);
+        }
+    }
+
+    // Установка конкретного аудио устройства
+    if let Err(e) = player.set_device("Your Audio Device").await {
+        println!("Failed to set audio device: {:?}", e);
+    }
+
+    // Получение текущего устройства
+    if let Some(current_device) = player.get_current_device().await {
+        println!("Current audio device: {}", current_device);
+    }
+
     let file_data = fs::read("path/to/audio.mp3").expect("Failed to read file");
     let track = Track::new("Example Track", file_data);
-    player.play(track);
+    player.play(track).await;
 }
 ```
 
@@ -62,6 +85,12 @@ impl EventHandler for MyEventHandler {
             }
             PlayerEvent::VolumeChanged(vol) => {
                 println!("[HANDLER] Volume changed to: {:.2}", vol);
+            }
+            PlayerEvent::DeviceChanged(device_name) => {
+                println!("[HANDLER] Audio device changed to: {}", device_name);
+            }
+            PlayerEvent::Error(error) => {
+                println!("[HANDLER] Error occurred: {:?}", error);
             }
             _ => {}
         }
@@ -99,6 +128,9 @@ async fn main() {
 - `stop_auto_play()`: Останавливает автоматическое воспроизведение.
 - `play_next()`: Воспроизводит следующий трек из очереди.
 - `play_previous()`: Воспроизводит предыдущий трек.
+- `list_devices() -> Result<Vec<String>, PlayerErrors>`: Возвращает список доступных аудио устройств.
+- `set_device(device_name: &str) -> Result<(), PlayerErrors>`: Устанавливает аудио устройство по имени.
+- `get_current_device() -> Option<String>`: Возвращает текущее аудио устройство.
 
 ### Queue
 **Queue** - очередь треков:
@@ -111,6 +143,7 @@ async fn main() {
 **Track** - структура, содержащая информацию о треке:
 - `title: String` - название трека.
 - `file_data: Vec<u8>` - бинарные данные трека.
+- `file_path: Option<String>` - путь к файлу (опционально).
 
 ## Баги и отчёты об ошибках
 
